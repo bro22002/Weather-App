@@ -8,7 +8,7 @@ The goal of this project is to master asynchronous programming patterns and recu
 
 {Provide a link to your YouTube demonstration.  It should be a one minute demo of the software running and a walkthrough of the code.}
 
-[Software Demo Video](http://youtube.link.goes.here)
+<!-- [Software Demo Video](http://youtube.link.goes.here) -->
 
 # Development Environment
 
@@ -25,5 +25,5 @@ The goal of this project is to master asynchronous programming patterns and recu
 # Useful Websites
 
 {Make a list of websites that you found helpful in this project}
-* [Web Site Name](http://url.link.goes.here)
-* [Web Site Name](http://url.link.goes.here)
+* [TypeScript](https://www.typescriptlang.org/)
+<!-- * [Web Site Name](http://url.link.goes.here) -->
