@@ -6,8 +6,6 @@ The Weather-APP is a data processing engine that simulates a global network of s
 
 The goal of this project is to master asynchronous programming patterns and recursive logic, ensuring high code reliability and data integrity in a simulated cloud environment.
 
-{Provide a link to your YouTube demonstration.  It should be a one minute demo of the software running and a walkthrough of the code.}
-
 <!-- [Software Demo Video](http://youtube.link.goes.here) -->
 
 # Development Environment
@@ -24,6 +22,13 @@ The goal of this project is to master asynchronous programming patterns and recu
 
 # Useful Websites
 
-{Make a list of websites that you found helpful in this project}
-* [TypeScript](https://www.typescriptlang.org/)
-<!-- * [Web Site Name](http://url.link.goes.here) -->
+- [TypeScript](https://www.typescriptlang.org/)
+- [Jest](https://jestjs.io/docs/getting-started)
+
+# Future Work
+
+{Make a list of things that you need to fix, improve, and add in the future.}
+
+- Item 1
+- Item 2
+- Item 3
