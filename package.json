@@ -1,29 +1,24 @@
 {
-  "name": "weather-app",
-  "version": "1.0.0",
-  "description": "As a software engineer, I am focused on building type-safe, scalable systems that handle real-time data processing. This project is a deep dive into the TypeScript ecosystem, specifically exploring asynchronous data streams and recursive algorithms to derive insights from complex meteorological datasets.",
-  "main": "index.js",
+  "name": "tmp-next",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "test": "jest"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/bro22002/Weather-App.git"
+  "dependencies": {
+    "next": "16.1.7",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
-  "keywords": [],
-  "author": "Stephen Richard Brown",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/bro22002/Weather-App/issues"
-  },
-  "homepage": "https://github.com/bro22002/Weather-App#readme",
   "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/node": "^25.5.0",
-    "jest": "^30.3.0",
-    "ts-jest": "^29.4.6",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.7",
+    "typescript": "^5"
   }
 }
