@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Overview
 
-## Getting Started
+As a software engineer, I am focused on building type-safe, scalable systems that handle real-time data processing. This project is a deep dive into the TypeScript ecosystem, specifically exploring asynchronous data streams and recursive algorithms to derive insights from complex meteorological datasets.
 
-First, run the development server:
+The Weather-APP is a data processing engine that simulates a global network of sensors. It ingests high-frequency data—temperature, humidity, and pressure and organizes it into structured objects to identify regional trends and trigger automated alerts.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+The goal of this project is to master asynchronous programming patterns and recursive logic, ensuring high code reliability and data integrity in a simulated cloud environment.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+<!-- [Software Demo Video](http://youtube.link.goes.here) -->
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Development Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Language: TypeScript (Strongly typed for data integrity)
 
-## Learn More
+- IDE: Visual Studio Code
 
-To learn more about Next.js, take a look at the following resources:
+- Runtime: Node.js & NPM
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Testing: Jest (Unit testing for recursive logic)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Execution: TS-Node
 
-## Deploy on Vercel
+# Useful Websites
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [TypeScript](https://www.typescriptlang.org/)
+- [Jest](https://jestjs.io/docs/getting-started)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Future Work
+
+The following enhancements and improvements are planned for future versions of this Weather Data Processor:
+
+- Add support for additional sensor types (e.g., barometric pressure, UV index, etc.)
+- Integrate live API data sources for real-world weather feeds
+- Improve UI/UX: display results in a web dashboard with interactive charts
+- Build out a robust alert management system (e.g., customizable thresholds, notification hooks)
+- Add data persistence to store and retrieve historical sensor readings
+- Expand testing: comprehensive unit and integration tests for asynchronous and recursive logic
+- Optimize recursive functions for performance on large datasets
+- Implement configuration management for regional and station-specific settings
+- Enhance sensor error handling and introduce data validation mechanisms
+- Document all modules and provide in-depth code examples for contributors
