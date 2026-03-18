@@ -1,6 +1,9 @@
 import { fetchSensorData } from '../sensor';
 import { calculateAveragePrecipitation, calculateAverageWindSpeed } from '../analysis';
 
+/** Fetch Open-Meteo at request time (not at build) so `next build` works offline. */
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const stations = await fetchSensorData();
   const avgWindSpeed = calculateAverageWindSpeed(stations);
