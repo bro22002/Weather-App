@@ -5,6 +5,7 @@
 export const STATION_LOCATIONS = [
     { stationID: 'GH-01', latitude: 5.1053, longitude: -1.2466 }, // Cape Coast
     { stationID: 'GH-02', latitude: 5.6052, longitude: -0.1668}, // KTA
+    { stationID: 'GH-03', latitude: 6.6885, longitude: -1.6244 }, // Kumasi
     { stationID: 'WA-01', latitude: 47.6062, longitude: -122.3321 }, // Seattle
     { stationID: 'WA-02', latitude: 47.6588, longitude: -117.426 }, // Spokane
     { stationID: 'OR-01', latitude: 45.5152, longitude: -122.6784 }, // Portland
