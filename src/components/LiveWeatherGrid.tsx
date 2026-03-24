@@ -76,7 +76,7 @@ export default function LiveWeatherGrid() {
 
       {stations.length === 0 && (
         <div className="glass-card flex items-center gap-4 px-5 py-8 border-l-4 border-l-yellow-500 mb-10 text-center justify-center">
-          <p className="font-medium">Waiting for cloud data. Ensure Firebase credentials are set in .env.local and run the Python simulator.</p>
+          <p className="font-medium">Waiting for cloud data.</p>
         </div>
       )}
 
@@ -147,7 +147,7 @@ export default function LiveWeatherGrid() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: 'Temp', value: `${station.temperature.toFixed(1)}°C` },
-                  { label: 'Humidity', value: `${station.humidity}%` },
+                  { label: 'Humidity', value: `${station.humidity.toFixed(0)}%` },
                   { label: 'Wind', value: `${station.windSpeed.toFixed(1)} km/h` },
                   { label: 'Precip', value: `${station.precipitation.toFixed(1)} mm` },
                 ].map(({ label, value }) => (
