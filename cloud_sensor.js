@@ -8,7 +8,7 @@ const SERVICE_ACCOUNT_FILE = path.join(__dirname, 'serviceAccountKey.json');
 const STATION_LOCATIONS = [
     { stationID: 'Cape Coast', latitude: 5.1053, longitude: -1.2466 }, 
     { stationID: 'Accra', latitude: 5.6052, longitude: -0.1668}, 
-    { stationID: 'Kumasi', latitude: 6.6885, longitude: -1.6244 }, 
+    // { stationID: 'Kumasi', latitude: 6.6885, longitude: -1.6244 }, 
 ];
 
 const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';

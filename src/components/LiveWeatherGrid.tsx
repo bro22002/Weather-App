@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { WeatherStation } from '../WeatherStation';
 import { calculateAveragePrecipitation, calculateAverageWindSpeed } from '../analysis';
@@ -9,6 +9,8 @@ import { calculateAveragePrecipitation, calculateAverageWindSpeed } from '../ana
 export default function LiveWeatherGrid() {
   const [stations, setStations] = useState<WeatherStation[]>([]);
   const [notifications, setNotifications] = useState<{id: string, message: string}[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   const isInitialLoad = useRef(true);
 
   useEffect(() => {
@@ -55,6 +57,77 @@ export default function LiveWeatherGrid() {
       console.error("Firebase not initialized properly. Did you add the env vars?", err);
     }
   }, []);
+
+  const handleDelete = async (stationID: string) => {
+    try {
+      await deleteDoc(doc(db, 'sensors', stationID));
+    } catch (error) {
+      console.error("Error deleting document:", error);
+    }
+  };
+
+  const handleModify = async (stationID: string, currentTemp: number) => {
+    try {
+      await updateDoc(doc(db, 'sensors', stationID), {
+        temperature: currentTemp + (Math.random() * 5 - 2.5),
+        timestamp: new Date()
+      });
+    } catch (error) {
+      console.error("Error modifying document:", error);
+    }
+  };
+
+  const handleAddLocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    
+    try {
+      let lat: number, lon: number, name: string;
+      
+      // Basic check for coordinates: "lat, lon" or "lat,lon"
+      const coordMatch = searchQuery.match(/^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/);
+      if (coordMatch) {
+         lat = parseFloat(coordMatch[1]);
+         lon = parseFloat(coordMatch[3]);
+         name = `Station (${lat.toFixed(2)}, ${lon.toFixed(2)})`;
+      } else {
+        // Use Geocoding API
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(searchQuery)}&count=1`);
+        const geoData = await geoRes.json();
+        if (!geoData.results || geoData.results.length === 0) {
+          alert('Location not found. Try a different city or exact coordinates (lat, lon).');
+          setIsSearching(false);
+          return;
+        }
+        lat = geoData.results[0].latitude;
+        lon = geoData.results[0].longitude;
+        name = geoData.results[0].name;
+      }
+
+      // Fetch authentic weather from Open-Meteo
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation`);
+      const weatherData = await weatherRes.json();
+      const current = weatherData.current || {};
+
+      // Insert to Firestore
+      await setDoc(doc(db, 'sensors', name), {
+        stationID: name,
+        temperature: current.temperature_2m || 0,
+        humidity: current.relative_humidity_2m || 0,
+        windSpeed: current.wind_speed_10m || 0,
+        precipitation: current.precipitation || 0,
+        timestamp: new Date()
+      });
+
+      setSearchQuery('');
+    } catch (error) {
+      console.error("Error adding location:", error);
+      alert('Failed to add location due to an error.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const avgWindSpeed = calculateAverageWindSpeed(stations);
   const avgPrecipitation = calculateAveragePrecipitation(stations);
@@ -128,19 +201,54 @@ export default function LiveWeatherGrid() {
 
       {/* ── Live Sensor Cards Grid ────────────────────────────────── */}
       <section className="animate-in delay-300">
-        <h2 className="text-3xl font-semibold tracking-tight mb-6 pb-3 border-b border-zinc-800" style={{ fontFamily: "'Outfit', sans-serif" }}>
-          Live Sensor Readings
-        </h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-6 pb-3 border-b border-zinc-800">
+          <h2 className="text-3xl font-semibold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            Live Sensor Readings
+          </h2>
+          <form onSubmit={handleAddLocation} className="flex gap-2 w-full sm:w-auto">
+            <input 
+              type="text"
+              placeholder="City (e.g., Paris) or lat,lon..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-zinc-900 border border-zinc-700 text-white text-sm rounded-lg px-3 py-2 w-full sm:w-64 focus:outline-none focus:border-blue-500"
+              disabled={isSearching}
+            />
+            <button 
+              type="submit"
+              disabled={isSearching || !searchQuery.trim()}
+              className="bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors border border-zinc-700 disabled:opacity-50 whitespace-nowrap"
+            >
+              {isSearching ? 'Adding...' : '+ Add Node'}
+            </button>
+          </form>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {stations.map((station) => (
             <div key={station.stationID} className="glass-card p-6 flex flex-col gap-5">
               {/* Card header */}
               <div className="flex justify-between items-center pb-3 border-b border-zinc-800">
                 <h3 className="text-lg font-semibold tracking-wider">{station.stationID}</h3>
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 uppercase tracking-wider">
-                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-                  Live (Cloud)
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
+                    Live (Cloud)
+                  </span>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleModify(station.stationID, station.temperature)}
+                      className="text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 px-2.5 py-1 rounded transition-colors"
+                    >
+                      Modify
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(station.stationID)}
+                      className="text-xs bg-red-900/40 hover:bg-red-800/60 text-red-300 px-2.5 py-1 rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Stats 2×2 grid */}
