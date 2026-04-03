@@ -6,6 +6,18 @@ import { db } from '../lib/firebase';
 import { WeatherStation } from '../WeatherStation';
 import { calculateAveragePrecipitation, calculateAverageWindSpeed } from '../analysis';
 
+function getWeatherCondition(station: WeatherStation) {
+  const baseUrl = 'https://www.amcharts.com/wp-content/themes/amcharts4/css/img/icons/weather/animated/';
+  if (station.precipitation > 5) return { text: 'Heavy Rain', icon: baseUrl + 'rainy-3.svg' };
+  if (station.precipitation > 0) return { text: 'Rainy', icon: baseUrl + 'rainy-1.svg' };
+  if (station.windSpeed > 30) return { text: 'Windy', icon: baseUrl + 'cloudy-day-3.svg' };
+  if (station.humidity > 85) return { text: 'Cloudy', icon: baseUrl + 'cloudy.svg' };
+  if (station.temperature > 30) return { text: 'Hot', icon: baseUrl + 'day.svg' };
+  if (station.temperature < 0) return { text: 'Snowy', icon: baseUrl + 'snowy-3.svg' };
+  if (station.humidity > 60) return { text: 'Partly Cloudy', icon: baseUrl + 'cloudy-day-1.svg' };
+  return { text: 'Sunny/Clear', icon: baseUrl + 'day.svg' };
+}
+
 export default function LiveWeatherGrid() {
   const [stations, setStations] = useState<WeatherStation[]>([]);
   const [notifications, setNotifications] = useState<{id: string, message: string}[]>([]);
@@ -224,11 +236,19 @@ export default function LiveWeatherGrid() {
           </form>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {stations.map((station) => (
+          {stations.map((station) => {
+            const condition = getWeatherCondition(station);
+            return (
             <div key={station.stationID} className="glass-card p-6 flex flex-col gap-5">
               {/* Card header */}
               <div className="flex justify-between items-center pb-3 border-b border-zinc-800">
-                <h3 className="text-lg font-semibold tracking-wider">{station.stationID}</h3>
+                <div>
+                  <h3 className="text-lg font-semibold tracking-wider">{station.stationID}</h3>
+                  <div className="flex items-center gap-2 mt-1 text-zinc-300">
+                    <img src={condition.icon} alt={condition.text} className="w-10 h-10 drop-shadow-lg" />
+                    <span className="text-sm font-medium">{condition.text}</span>
+                  </div>
+                </div>
                 <div className="flex flex-col items-end gap-2">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 uppercase tracking-wider">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
@@ -266,7 +286,8 @@ export default function LiveWeatherGrid() {
                 ))}
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       </section>
     </>
