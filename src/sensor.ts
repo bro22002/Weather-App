@@ -1,20 +1,18 @@
 import { WeatherStation } from './WeatherStation';
-import { STATION_LOCATIONS } from './stationLocations';
+import { STATION_LOCATIONS, type StationLocation } from './stationLocations';
 
 const OPEN_METEO_BASE = 'https://api.open-meteo.com/v1/forecast';
 
-/** Open-Meteo returns one object per location; missing numbers default to 0 (see README). */
+/** Open-Meteo multi-location URLs stay under practical limits when batched. */
+export const OPEN_METEO_BATCH_SIZE = 80;
+
 function toNumber(value: unknown): number {
     return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
 }
 
-/**
- * Fetches current conditions for all configured stations in one request.
- * @see https://open-meteo.com/en/docs
- */
-export async function fetchSensorData(): Promise<WeatherStation[]> {
-    const latitudes = STATION_LOCATIONS.map((s) => s.latitude).join(',');
-    const longitudes = STATION_LOCATIONS.map((s) => s.longitude).join(',');
+async function fetchOpenMeteoChunk(locations: readonly StationLocation[]): Promise<WeatherStation[]> {
+    const latitudes = locations.map((s) => s.latitude).join(',');
+    const longitudes = locations.map((s) => s.longitude).join(',');
     const params = new URLSearchParams({
         latitude: latitudes,
         longitude: longitudes,
@@ -53,13 +51,13 @@ export async function fetchSensorData(): Promise<WeatherStation[]> {
     }
 
     const items = Array.isArray(body) ? body : [body];
-    if (items.length !== STATION_LOCATIONS.length) {
+    if (items.length !== locations.length) {
         throw new Error(
-            `Expected ${STATION_LOCATIONS.length} location results from Open-Meteo, got ${items.length}`
+            `Expected ${locations.length} location results from Open-Meteo, got ${items.length}`
         );
     }
 
-    return STATION_LOCATIONS.map((loc, i) => {
+    return locations.map((loc, i) => {
         const item = items[i] as {
             current?: {
                 temperature_2m?: number;
@@ -77,7 +75,24 @@ export async function fetchSensorData(): Promise<WeatherStation[]> {
             toNumber(c.temperature_2m),
             toNumber(c.relative_humidity_2m),
             toNumber(c.wind_speed_10m),
-            toNumber(c.precipitation)
+            toNumber(c.precipitation),
+            loc.latitude,
+            loc.longitude,
+            loc.docId
         );
     });
+}
+
+/**
+ * Fetches current conditions for all configured stations (batched Open-Meteo requests).
+ * @see https://open-meteo.com/en/docs
+ */
+export async function fetchSensorData(): Promise<WeatherStation[]> {
+    const all: WeatherStation[] = [];
+    for (let i = 0; i < STATION_LOCATIONS.length; i += OPEN_METEO_BATCH_SIZE) {
+        const chunk = STATION_LOCATIONS.slice(i, i + OPEN_METEO_BATCH_SIZE);
+        const part = await fetchOpenMeteoChunk(chunk);
+        all.push(...part);
+    }
+    return all;
 }

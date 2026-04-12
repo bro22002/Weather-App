@@ -1,12 +1,14 @@
-import { fetchSensorData } from '../src/sensor';
+import { fetchSensorData, OPEN_METEO_BATCH_SIZE } from '../src/sensor';
 import { STATION_LOCATIONS } from '../src/stationLocations';
 
-const makeOpenMeteoItem = (overrides: Partial<{
-    temperature_2m: number;
-    relative_humidity_2m: number;
-    wind_speed_10m: number;
-    precipitation: number;
-}> = {}) => ({
+const makeOpenMeteoItem = (
+    overrides: Partial<{
+        temperature_2m: number;
+        relative_humidity_2m: number;
+        wind_speed_10m: number;
+        precipitation: number;
+    }> = {}
+) => ({
     latitude: 0,
     longitude: 0,
     current: {
@@ -29,31 +31,37 @@ describe('fetchSensorData (Open-Meteo)', () => {
     });
 
     it('maps batched Open-Meteo JSON to WeatherStation[] in station order', async () => {
-        const payload = STATION_LOCATIONS.map((loc, i) =>
-            makeOpenMeteoItem({
-                temperature_2m: 10 + i,
-                relative_humidity_2m: 60 + i,
-                wind_speed_10m: 5 + i * 2,
-                precipitation: i * 0.5,
-            })
-        );
-
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => payload,
+        let callIndex = 0;
+        global.fetch = jest.fn().mockImplementation(() => {
+            const start = callIndex * OPEN_METEO_BATCH_SIZE;
+            callIndex += 1;
+            const slice = STATION_LOCATIONS.slice(start, start + OPEN_METEO_BATCH_SIZE);
+            const payload = slice.map((loc, j) =>
+                makeOpenMeteoItem({
+                    temperature_2m: 10 + start + j,
+                    relative_humidity_2m: 60 + start + j,
+                    wind_speed_10m: 5 + (start + j) * 2,
+                    precipitation: (start + j) * 0.5,
+                })
+            );
+            return Promise.resolve({
+                ok: true,
+                status: 200,
+                json: async () => payload,
+            });
         }) as unknown as typeof fetch;
 
         const stations = await fetchSensorData();
 
         expect(stations).toHaveLength(STATION_LOCATIONS.length);
-        expect(stations[0].stationID).toBe('WA-01');
+        expect(stations[0].stationID).toBe(STATION_LOCATIONS[0].stationID);
         expect(stations[0].temperature).toBe(10);
         expect(stations[0].humidity).toBe(60);
         expect(stations[0].windSpeed).toBe(5);
         expect(stations[0].precipitation).toBe(0);
-        expect(stations[4].stationID).toBe('FL-01');
-        expect(stations[4].temperature).toBe(14);
+        expect(global.fetch).toHaveBeenCalledTimes(
+            Math.ceil(STATION_LOCATIONS.length / OPEN_METEO_BATCH_SIZE)
+        );
     });
 
     it('throws when HTTP response is not ok', async () => {
@@ -77,24 +85,32 @@ describe('fetchSensorData (Open-Meteo)', () => {
         await expect(fetchSensorData()).rejects.toThrow(/Open-Meteo error: Invalid variable/);
     });
 
-    it('throws when result count does not match station config', async () => {
+    it('throws when result count does not match chunk size', async () => {
         global.fetch = jest.fn().mockResolvedValue({
             ok: true,
             status: 200,
             json: async () => [makeOpenMeteoItem()],
         }) as unknown as typeof fetch;
 
-        await expect(fetchSensorData()).rejects.toThrow(/Expected 5 location results/);
+        await expect(fetchSensorData()).rejects.toThrow(
+            new RegExp(`Expected ${Math.min(OPEN_METEO_BATCH_SIZE, STATION_LOCATIONS.length)} location results`)
+        );
     });
 
     it('defaults missing numeric fields in current to 0', async () => {
-        const payload = STATION_LOCATIONS.map(() => ({
-            current: { time: '2026-01-01T12:00', interval: 900 },
-        }));
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => payload,
+        let callIndex = 0;
+        global.fetch = jest.fn().mockImplementation(() => {
+            const start = callIndex * OPEN_METEO_BATCH_SIZE;
+            callIndex += 1;
+            const slice = STATION_LOCATIONS.slice(start, start + OPEN_METEO_BATCH_SIZE);
+            const payload = slice.map(() => ({
+                current: { time: '2026-01-01T12:00', interval: 900 },
+            }));
+            return Promise.resolve({
+                ok: true,
+                status: 200,
+                json: async () => payload,
+            });
         }) as unknown as typeof fetch;
 
         const stations = await fetchSensorData();

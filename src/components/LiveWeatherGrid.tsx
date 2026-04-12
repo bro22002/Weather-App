@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, query, doc, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { firestoreTimestampToDate } from '../lib/firestoreTimestamp';
+import { comfortInsight, approximateFeelsLikeC } from '../lib/weatherInsights';
 import { WeatherStation } from '../WeatherStation';
 import { calculateAveragePrecipitation, calculateAverageWindSpeed } from '../analysis';
 
@@ -19,11 +22,18 @@ function getWeatherCondition(station: WeatherStation) {
 }
 
 export default function LiveWeatherGrid() {
+  const router = useRouter();
   const [stations, setStations] = useState<WeatherStation[]>([]);
   const [notifications, setNotifications] = useState<{id: string, message: string}[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [insightsOpenFor, setInsightsOpenFor] = useState<string | null>(null);
   const isInitialLoad = useRef(true);
+
+  const openStationOnMap = (station: WeatherStation) => {
+    if (station.latitude == null || station.longitude == null) return;
+    router.push(`/map?station=${encodeURIComponent(station.idForFirestore)}`);
+  };
 
   useEffect(() => {
     try {
@@ -32,14 +42,18 @@ export default function LiveWeatherGrid() {
       const q = query(collection(db, 'sensors'));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const newStations: WeatherStation[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
           newStations.push(new WeatherStation(
-            data.stationID || doc.id,
-            data.temperature || 0,
-            data.humidity || 0,
-            data.windSpeed || 0,
-            data.precipitation || 0
+            data.stationID || docSnap.id,
+            data.temperature   || 0,
+            data.humidity      || 0,
+            data.windSpeed     || 0,
+            data.precipitation || 0,
+            data.latitude,
+            data.longitude,
+            docSnap.id,
+            firestoreTimestampToDate(data.timestamp),
           ));
         });
 
@@ -70,17 +84,17 @@ export default function LiveWeatherGrid() {
     }
   }, []);
 
-  const handleDelete = async (stationID: string) => {
+  const handleDelete = async (documentId: string) => {
     try {
-      await deleteDoc(doc(db, 'sensors', stationID));
+      await deleteDoc(doc(db, 'sensors', documentId));
     } catch (error) {
       console.error("Error deleting document:", error);
     }
   };
 
-  const handleModify = async (stationID: string, currentTemp: number) => {
+  const handleModify = async (documentId: string, currentTemp: number) => {
     try {
-      await updateDoc(doc(db, 'sensors', stationID), {
+      await updateDoc(doc(db, 'sensors', documentId), {
         temperature: currentTemp + (Math.random() * 5 - 2.5),
         timestamp: new Date()
       });
@@ -129,6 +143,8 @@ export default function LiveWeatherGrid() {
         humidity: current.relative_humidity_2m || 0,
         windSpeed: current.wind_speed_10m || 0,
         precipitation: current.precipitation || 0,
+        latitude: lat,
+        longitude: lon,
         timestamp: new Date()
       });
 
@@ -238,52 +254,118 @@ export default function LiveWeatherGrid() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {stations.map((station) => {
             const condition = getWeatherCondition(station);
+            const rowKey = station.documentId ?? station.stationID;
+            const hasCoords = station.latitude != null && station.longitude != null;
+            const insightsOpen = insightsOpenFor === rowKey;
+
             return (
-            <div key={station.stationID} className="glass-card p-6 flex flex-col gap-5">
-              {/* Card header */}
-              <div className="flex justify-between items-center pb-3 border-b border-zinc-800">
-                <div>
-                  <h3 className="text-lg font-semibold tracking-wider">{station.stationID}</h3>
-                  <div className="flex items-center gap-2 mt-1 text-zinc-300">
-                    <img src={condition.icon} alt={condition.text} className="w-10 h-10 drop-shadow-lg" />
-                    <span className="text-sm font-medium">{condition.text}</span>
+            <div
+              key={rowKey}
+              className="glass-card flex flex-col overflow-hidden rounded-2xl border border-zinc-800/80 shadow-lg shadow-black/20 transition hover:border-blue-500/35 hover:shadow-blue-950/20"
+            >
+              <div
+                role="button"
+                tabIndex={hasCoords ? 0 : -1}
+                className={`flex flex-col gap-5 p-6 text-left outline-none transition ${
+                  hasCoords
+                    ? 'cursor-pointer hover:bg-zinc-900/50 focus-visible:ring-2 focus-visible:ring-blue-500/80 focus-visible:ring-inset'
+                    : 'cursor-default opacity-95'
+                }`}
+                onClick={() => openStationOnMap(station)}
+                onKeyDown={(e) => {
+                  if (!hasCoords) return;
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openStationOnMap(station);
+                  }
+                }}
+              >
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-semibold tracking-wide text-white truncate">{station.stationID}</h3>
+                    <div className="flex items-center gap-2 mt-2 text-zinc-300">
+                      <img src={condition.icon} alt={condition.text} className="w-10 h-10 shrink-0 drop-shadow-lg" />
+                      <span className="text-sm font-medium">{condition.text}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 uppercase tracking-wider">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-                    Live (Cloud)
+                  <span className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden />
+                    Live
                   </span>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleModify(station.stationID, station.temperature)}
-                      className="text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 px-2.5 py-1 rounded transition-colors"
-                    >
-                      Modify
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(station.stationID)}
-                      className="text-xs bg-red-900/40 hover:bg-red-800/60 text-red-300 px-2.5 py-1 rounded transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: 'Temperature', value: `${station.temperature.toFixed(1)}°C` },
+                    { label: 'Humidity', value: `${station.humidity.toFixed(0)}%` },
+                    { label: 'Wind', value: `${station.windSpeed.toFixed(1)} km/h` },
+                    { label: 'Precipitation', value: `${station.precipitation.toFixed(1)} mm` },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-xl bg-zinc-900/50 border border-zinc-800/80 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold text-zinc-500 tracking-wide mb-0.5">{label}</p>
+                      <p className="text-lg font-semibold text-white leading-tight tabular-nums">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {hasCoords ? (
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/60">
+                    <span className="text-xs font-medium text-blue-400 flex items-center gap-1.5">
+                      <span aria-hidden>🗺️</span>
+                      Open on live map
+                    </span>
+                    <span className="text-[10px] text-zinc-500 hidden sm:inline">Pan · zoom · popup</span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-400/90 pt-1 border-t border-zinc-800/60">
+                    No map position — this row is dashboard-only until latitude and longitude exist in Firestore.
+                  </p>
+                )}
               </div>
 
-              {/* Stats 2×2 grid */}
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { label: 'Temp', value: `${station.temperature.toFixed(1)}°C` },
-                  { label: 'Humidity', value: `${station.humidity.toFixed(0)}%` },
-                  { label: 'Wind', value: `${station.windSpeed.toFixed(1)} km/h` },
-                  { label: 'Precip', value: `${station.precipitation.toFixed(1)} mm` },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-xl font-semibold text-white leading-tight">{value}</p>
-                  </div>
-                ))}
+              {insightsOpen && (
+                <div className="mx-4 mb-2 rounded-xl border border-zinc-700/80 bg-zinc-950/70 px-4 py-3 text-sm text-zinc-300">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1.5">Insights</p>
+                  <p className="leading-relaxed">{comfortInsight(station)}</p>
+                  <p className="mt-2 text-xs text-zinc-500 tabular-nums">
+                    Approx. feels-like {approximateFeelsLikeC(station).toFixed(1)}°C (simple model, not official METAR)
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-zinc-800/80 px-4 py-3 bg-zinc-950/30">
+                <button
+                  type="button"
+                  className="text-xs font-medium rounded-lg bg-violet-950/50 hover:bg-violet-900/60 text-violet-200 px-2.5 py-1.5 border border-violet-700/40 transition"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInsightsOpenFor((id) => (id === rowKey ? null : rowKey));
+                  }}
+                >
+                  {insightsOpen ? 'Hide insights' : 'Insights'}
+                </button>
+                <div className="ml-auto flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleModify(station.idForFirestore, station.temperature);
+                    }}
+                    className="text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 px-2.5 py-1 rounded transition-colors"
+                  >
+                    Modify
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(station.idForFirestore);
+                    }}
+                    className="text-xs bg-red-900/40 hover:bg-red-800/60 text-red-300 px-2.5 py-1 rounded transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           );
